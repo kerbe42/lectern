@@ -27,4 +27,19 @@ export const SHADOW_CSS = `
 .lec-w { transition: background .08s; }
 .lec-sent-active { background: rgba(255,213,74,.28); }
 .lec-w-active { background: #ffd54a; color: #111; border-radius: 3px; }
+
+/* --- Phone / narrow-screen layout --- */
+@media (max-width: 760px) {
+  .lec-panel { width: 100vw; max-width: none; padding: 20px 16px 160px; font-size: 19px; line-height: 1.75; }
+  .lec-panel h1 { font-size: 22px; }
+  .lec-bar {
+    left: 0; right: 0; bottom: 0; transform: none; width: 100%;
+    border-radius: 14px 14px 0 0; flex-wrap: wrap; justify-content: center;
+    gap: 10px; padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .lec-bar button { width: 44px; height: 44px; font-size: 18px; }   /* 44px = comfortable touch target */
+  .lec-bar .lec-prog { order: 10; width: 100%; height: 9px; }       /* progress on its own full-width row */
+  .lec-bar select { max-width: 46%; height: 40px; }
+  .lec-resume { bottom: auto; top: 12px; }                          /* keep clear of the bottom bar */
+}
 `;

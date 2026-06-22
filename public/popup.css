@@ -5,3 +5,8 @@ button.primary:hover { background: #1d4ed8; }
 label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 select, input[type=range] { flex: 1; }
 h1 { font-size: 15px; margin: 0 0 4px; }
+@media (max-width: 480px) {
+  body { width: auto; }
+  #app { padding: 18px; gap: 14px; }
+  button.primary { padding: 14px; font-size: 16px; }
+}

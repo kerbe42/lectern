@@ -1,4 +1,5 @@
 node_modules/
 dist/
+lectern.zip
 *.log
 .DS_Store
