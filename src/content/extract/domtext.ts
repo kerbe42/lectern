@@ -1,9 +1,12 @@
 export interface NodeSpan { node: Text; globalStart: number; length: number; }
 export interface CollectedText { text: string; spans: NodeSpan[]; }
 
-// Tags whose text is never readable prose. NOT included: BUTTON — inline buttons can carry
-// real content (e.g. glossary terms rendered as <button class="glossary-term">LLM</button>).
-const SKIP = new Set(['SCRIPT','STYLE','NOSCRIPT','IFRAME','SVG','CANVAS','AUDIO','VIDEO','SELECT','TEXTAREA','CODE','PRE','FIGURE']);
+// Tags whose text is never readable prose: scripts/styles, embedded media, and form controls.
+// Deliberately NOT skipped, because their text is real content the reader wants:
+//   BUTTON  — inline glossary terms (<button class="glossary-term">LLM</button>)
+//   CODE/PRE — example prompts, payloads, commands (the substance of technical articles)
+//   FIGURE  — figure captions
+const SKIP = new Set(['SCRIPT','STYLE','NOSCRIPT','IFRAME','SVG','CANVAS','AUDIO','VIDEO','SELECT','TEXTAREA']);
 
 /** True if the element or any ancestor up to (not including) root is a skipped tag. */
 function inSkippedSubtree(el: Element, root: Node): boolean {
