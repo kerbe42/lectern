@@ -24,7 +24,7 @@ async function render() {
       </select>
     </label>
     <label>Speed <span id="ratev">${s.rate.toFixed(1)}×</span></label>
-    <input type="range" id="rate" min="0.5" max="4" step="0.25" value="${s.rate}" />
+    <input type="range" id="rate" min="0.5" max="4" step="0.1" value="${s.rate}" />
     <label>Highlight color
       <input type="color" id="wc" value="${toHex(s.wordColor)}" />
     </label>

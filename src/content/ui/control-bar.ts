@@ -21,9 +21,9 @@ export class ControlBar {
     this.playBtn = btn('▶', cb.onPlayPause);
     const next = btn('⏭', cb.onNext);
     const stop = btn('■', cb.onStop);
-    const slower = btn('−', () => this.bumpRate(-0.25));
+    const slower = btn('−', () => this.bumpRate(-0.1));
     this.rateLabel = el('span', 'lec-rate'); this.rateLabel.textContent = '1.0×';
-    const faster = btn('+', () => this.bumpRate(0.25));
+    const faster = btn('+', () => this.bumpRate(0.1));
     this.prog = el('div', 'lec-prog'); this.progFill = el('div', ''); this.prog.appendChild(this.progFill);
     this.prog.addEventListener('click', e => {
       const r = this.prog.getBoundingClientRect();
