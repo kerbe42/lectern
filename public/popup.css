@@ -1,12 +1,8 @@
-body { width: 280px; margin: 0; font: 13px system-ui, sans-serif; }
+html, body { width: 280px; min-width: 280px; }
+body { margin: 0; font: 13px system-ui, sans-serif; }
 #app { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 button.primary { padding: 10px; font-size: 14px; cursor: pointer; border: 0; border-radius: 8px; background: #2563eb; color: #fff; }
 button.primary:hover { background: #1d4ed8; }
 label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 select, input[type=range] { flex: 1; }
 h1 { font-size: 15px; margin: 0 0 4px; }
-@media (max-width: 480px) {
-  body { width: auto; }
-  #app { padding: 18px; gap: 14px; }
-  button.primary { padding: 14px; font-size: 16px; }
-}
