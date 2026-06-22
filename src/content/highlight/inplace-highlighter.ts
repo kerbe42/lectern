@@ -19,11 +19,14 @@ export class InplaceHighlighter implements Highlighter {
     this.ranges = map.tokens.map(t => rangeFor(collected.spans, t.charIndex, t.charEnd, doc));
     (CSS as any).highlights.set('lec-word', this.wordHL);
     (CSS as any).highlights.set('lec-sent', this.sentHL);
+    // Validate colors before interpolating into a stylesheet (defense-in-depth against CSS injection).
+    const wc = safeColor(wordColor, '#ffd54a');
+    const sc = safeColor(sentColor, 'rgba(255,213,74,.28)');
     this.styleEl = doc.createElement('style');
     this.styleEl.id = 'lectern-highlights';
     this.styleEl.textContent =
-      `::highlight(lec-sent){background:${sentColor};}` +
-      `::highlight(lec-word){background:${wordColor};color:#111;border-radius:2px;}`;
+      `::highlight(lec-sent){background:${sc};}` +
+      `::highlight(lec-word){background:${wc};color:#111;border-radius:2px;}`;
     doc.head.appendChild(this.styleEl);
   }
 
@@ -62,5 +65,14 @@ export class InplaceHighlighter implements Highlighter {
   }
   static supported(): boolean {
     return typeof (globalThis as any).Highlight !== 'undefined' && !!(CSS as any).highlights;
+  }
+}
+
+/** Return `c` only if it's a valid CSS color, else `fallback` — prevents stylesheet break-out. */
+function safeColor(c: string, fallback: string): string {
+  try {
+    return typeof CSS !== 'undefined' && CSS.supports && CSS.supports('color', c) ? c : fallback;
+  } catch {
+    return fallback;
   }
 }

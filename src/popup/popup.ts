@@ -1,4 +1,4 @@
-import { getSettings, setSettings } from '../shared/storage';
+import { getSettings, setSettings, clearAllPositions } from '../shared/storage';
 import { stepRate } from '../shared/rate';
 import type { LecternMessage } from '../shared/messages';
 import type { Mode } from '../shared/types';
@@ -31,6 +31,7 @@ async function render() {
     <label>Highlight color
       <input type="color" id="wc" value="${toHex(s.wordColor)}" />
     </label>
+    <button id="clearpos" style="background:none;border:0;color:#6b7280;cursor:pointer;font-size:12px;text-align:left;padding:0">Clear saved reading positions</button>
   `;
   (document.getElementById('mode') as HTMLSelectElement).value = s.mode;
   document.getElementById('read')!.addEventListener('click', injectAndStart);
@@ -44,6 +45,11 @@ async function render() {
   });
   document.getElementById('wc')!.addEventListener('change', e =>
     setSettings({ wordColor: (e.target as HTMLInputElement).value }));
+  const clearBtn = document.getElementById('clearpos')!;
+  clearBtn.addEventListener('click', async () => {
+    await clearAllPositions();
+    clearBtn.textContent = 'Saved positions cleared ✓';
+  });
 }
 function toHex(c: string) { return /^#[0-9a-fA-F]{6}$/.test(c) ? c : '#ffd54a'; }
 render();
