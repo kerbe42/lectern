@@ -5,6 +5,15 @@ export interface Readable { title: string; contentHtml: string; }
 export function extractReadable(doc: Document): Readable | null {
   try {
     const clone = doc.cloneNode(true) as Document;
+    // Readability removes <button> elements, which drops inline content such as glossary
+    // terms (<button class="glossary-term">LLM</button>). Demote buttons to spans first so
+    // their text survives into the article. Block-level chrome is still removed by
+    // Readability's own nav/link-density heuristics.
+    clone.querySelectorAll('button').forEach(b => {
+      const span = clone.createElement('span');
+      span.innerHTML = b.innerHTML;
+      b.replaceWith(span);
+    });
     const art = new Readability(clone).parse();
     if (art?.content && art.textContent && art.textContent.trim().length > 40) {
       return { title: art.title || doc.title, contentHtml: art.content };

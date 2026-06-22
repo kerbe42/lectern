@@ -1,7 +1,19 @@
 export interface NodeSpan { node: Text; globalStart: number; length: number; }
 export interface CollectedText { text: string; spans: NodeSpan[]; }
 
-const SKIP = new Set(['SCRIPT','STYLE','NOSCRIPT','IFRAME','SVG','CANVAS','AUDIO','VIDEO','SELECT','TEXTAREA','BUTTON','CODE','PRE','FIGURE']);
+// Tags whose text is never readable prose. NOT included: BUTTON — inline buttons can carry
+// real content (e.g. glossary terms rendered as <button class="glossary-term">LLM</button>).
+const SKIP = new Set(['SCRIPT','STYLE','NOSCRIPT','IFRAME','SVG','CANVAS','AUDIO','VIDEO','SELECT','TEXTAREA','CODE','PRE','FIGURE']);
+
+/** True if the element or any ancestor up to (not including) root is a skipped tag. */
+function inSkippedSubtree(el: Element, root: Node): boolean {
+  let cur: Element | null = el;
+  while (cur && cur !== root) {
+    if (SKIP.has(cur.tagName)) return true;
+    cur = cur.parentElement;
+  }
+  return false;
+}
 
 export function collectDomText(root: Node, within?: Range): CollectedText {
   const doc = (root.ownerDocument ?? (root as Document));
@@ -11,7 +23,7 @@ export function collectDomText(root: Node, within?: Range): CollectedText {
       const t = n as Text;
       if (!t.data || !t.data.trim()) return NodeFilter.FILTER_REJECT;
       const el = t.parentElement;
-      if (!el || SKIP.has(el.tagName)) return NodeFilter.FILTER_REJECT;
+      if (!el || inSkippedSubtree(el, root)) return NodeFilter.FILTER_REJECT;
       if (within && !within.intersectsNode(t)) return NodeFilter.FILTER_REJECT;
       const cs = view?.getComputedStyle(el);
       if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return NodeFilter.FILTER_REJECT;
