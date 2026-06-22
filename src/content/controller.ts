@@ -59,6 +59,7 @@ export class Controller {
       },
       onSeekFraction: f => this.engine.seekToToken(Math.floor(f * Math.max(0, this.map.tokens.length - 1))),
       onToggleMode: () => this.toggleMode(),
+      onRefresh: () => this.refresh(),
       onClose: () => this.close(),
     });
 
@@ -163,6 +164,17 @@ export class Controller {
       if (wasPlaying) this.engine.play(from);
       else { this.highlighter?.highlightWord(from); this.updateProgress(from); }
     }
+  }
+
+  /** Re-extract the current (now-visible) page content and read it. For accordions/SPAs
+   *  where panels load on expand — the original snapshot can't see content added later. */
+  private refresh() {
+    this.source = 'page';
+    this.engine.stop();
+    if (!this.build('page', this.mode)) { alert('Lectern: nothing readable found here.'); return; }
+    if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
+    this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri), this.rate);
+    this.engine.play();
   }
 
   private playPause() {

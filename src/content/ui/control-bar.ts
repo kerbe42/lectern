@@ -4,7 +4,7 @@ import { stepRate } from '../../shared/rate';
 export interface ControlBarCallbacks {
   onPlayPause(): void; onStop(): void; onPrev(): void; onNext(): void;
   onRate(rate: number): void; onVoice(uri: string): void; onSeekFraction(f: number): void;
-  onToggleMode(): void; onClose(): void;
+  onToggleMode(): void; onRefresh(): void; onClose(): void;
 }
 
 export class ControlBar {
@@ -33,8 +33,9 @@ export class ControlBar {
     this.voiceSel = document.createElement('select');
     this.voiceSel.addEventListener('change', () => cb.onVoice(this.voiceSel.value));
     const mode = btn('▤', cb.onToggleMode); mode.title = 'Toggle overlay / in-place';
+    const refresh = btn('↻', cb.onRefresh); refresh.title = 'Re-scan page (for expanded / newly loaded content)';
     const close = btn('✕', cb.onClose);
-    this.bar.append(prev, this.playBtn, next, stop, slower, this.rateLabel, faster, this.prog, this.voiceSel, mode, close);
+    this.bar.append(prev, this.playBtn, next, stop, slower, this.rateLabel, faster, this.prog, this.voiceSel, mode, refresh, close);
     shadow.appendChild(this.bar);
   }
 
