@@ -1,7 +1,7 @@
 import { Mode, Source, TokenMap } from '../shared/types';
 import { getSettings, setSettings, getPosition, setPosition, clearPosition } from '../shared/storage';
 import { collectDomText, CollectedText } from './extract/domtext';
-import { buildTokenMap } from './extract/token-map';
+import { buildTokenMap, findTokenByPhrase } from './extract/token-map';
 import { extractReadable, findContentRoot } from './extract/readability';
 import { chunkBySentence } from './speech/chunker';
 import { loadVoices, pickVoice } from './speech/voices';
@@ -28,6 +28,7 @@ export class Controller {
   private wordColor = '#ffd54a';
   private sentColor = 'rgba(255, 213, 74, 0.28)';
   private lastSaved = 0;
+  private inplaceClickAttached = false;
   disposed = false;
 
   constructor() {
@@ -81,6 +82,7 @@ export class Controller {
       alert('Lectern: nothing readable found here.');
       return;
     }
+    if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
 
     this.engine.load(this.map, chunkBySentence(this.map), voice, this.rate);
 
@@ -143,13 +145,22 @@ export class Controller {
   }
 
   private toggleMode() {
+    // Capture the current words BEFORE rebuilding — the two modes index differently,
+    // so we relocate by matching the words, not the index.
+    const at = this.engine.currentToken();
+    const phrase = this.map.tokens.slice(at, at + 5).map(t => t.text);
+    const wasPlaying = this.engine.getState() === 'playing';
+
     this.mode = this.mode === 'overlay' ? 'inplace' : 'overlay';
     setSettings({ mode: this.mode });
-    const at = this.engine.currentToken();
     this.engine.stop();
     if (this.build('page', this.mode)) {
       this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri), this.rate);
-      this.engine.play(Math.min(at, this.map.tokens.length - 1));
+      if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick(); else this.detachInplaceClick();
+      const target = findTokenByPhrase(this.map, phrase);
+      const from = target >= 0 ? target : 0;
+      if (wasPlaying) this.engine.play(from);
+      else { this.highlighter?.highlightWord(from); this.updateProgress(from); }
     }
   }
 
@@ -178,7 +189,27 @@ export class Controller {
     b.addEventListener('click', e => { if (e.target === fromStart) go(0); else go(tokenIndex); });
     this.shadow.appendChild(b);
   }
+  // Tap a word on the live page (in-place mode) to start reading there. Capture phase so a
+  // tap on article text seeks instead of triggering the page's own link/button; taps that
+  // don't land on our read text (tokenAtPoint === -1) and taps on our own UI pass through.
+  private onInplaceClick = (e: MouseEvent) => {
+    if (!this.highlighter) return;
+    if (e.composedPath().includes(this.shadow.host)) return;
+    const ti = this.highlighter.tokenAtPoint(e.clientX, e.clientY);
+    if (ti >= 0) { e.preventDefault(); e.stopPropagation(); this.engine.seekToToken(ti); }
+  };
+  private attachInplaceClick() {
+    if (this.inplaceClickAttached) return;
+    document.addEventListener('click', this.onInplaceClick, true);
+    this.inplaceClickAttached = true;
+  }
+  private detachInplaceClick() {
+    if (!this.inplaceClickAttached) return;
+    document.removeEventListener('click', this.onInplaceClick, true);
+    this.inplaceClickAttached = false;
+  }
   private teardownReading() {
+    this.detachInplaceClick();
     this.highlighter?.destroy(); this.highlighter = null;
     this.panel?.destroy(); this.panel = null;
   }

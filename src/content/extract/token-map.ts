@@ -35,3 +35,23 @@ export function tokenAtOffset(map: TokenMap, offset: number): number {
   }
   return ans;
 }
+
+/**
+ * Find where `phrase` (a run of word texts) starts in `map`, case-insensitively.
+ * Used to carry the reading position across the overlay/in-place token maps, which
+ * index differently. Returns the token index of the match, or -1 if not found.
+ */
+export function findTokenByPhrase(map: TokenMap, phrase: string[]): number {
+  if (phrase.length === 0) return -1;
+  const t = map.tokens;
+  const lower = phrase.map(p => p.toLowerCase());
+  for (let i = 0; i < t.length; i++) {
+    if (t[i].text.toLowerCase() !== lower[0]) continue;
+    let ok = true;
+    for (let k = 1; k < lower.length && i + k < t.length; k++) {
+      if (t[i + k].text.toLowerCase() !== lower[k]) { ok = false; break; }
+    }
+    if (ok) return i;
+  }
+  return -1;
+}
