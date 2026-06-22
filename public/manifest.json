@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Lectern",
+  "version": "0.1.0",
+  "description": "Read the page aloud and highlight words as it reads. Free, local, no API keys.",
+  "action": { "default_popup": "popup.html", "default_title": "Lectern — read this page aloud" },
+  "background": { "service_worker": "service-worker.js" },
+  "permissions": ["activeTab", "scripting", "storage", "contextMenus"]
+}
