@@ -30,6 +30,7 @@ export class Controller {
   private sentColor = 'rgba(255, 213, 74, 0.28)';
   private lastSaved = 0;
   private inplaceClickAttached = false;
+  private startCue: HTMLElement | null = null;
   disposed = false;
 
   constructor() {
@@ -42,7 +43,7 @@ export class Controller {
     this.engine = new SpeechEngine(window.speechSynthesis, {
       onWord: ti => { this.highlighter?.highlightWord(ti); this.updateProgress(ti); this.maybeSave(ti); },
       onSentence: sid => this.highlighter?.highlightSentence(sid),
-      onState: s => this.bar.setState(s),
+      onState: s => { this.bar.setState(s); if (s === 'playing') this.clearStartCue(); },
       onEnd: () => { if (this.source === 'page') clearPosition(location.href); },
     });
     this.bar = new ControlBar(this.shadow, {
@@ -88,11 +89,15 @@ export class Controller {
 
     this.engine.load(this.map, chunkBySentence(this.map), voice, this.rate);
 
+    // Page reads don't auto-play — the user taps a word to start (or resumes / presses ▶).
+    // A selection is itself an explicit "read this now", so it plays immediately.
     if (source === 'page') {
       const saved = await getPosition(location.href);
       if (saved && saved > 0 && saved < this.map.tokens.length) { this.offerResume(saved); return; }
+      this.showTapHint();
+    } else {
+      this.engine.play();
     }
-    this.engine.play();
   }
 
   /** Build token map + highlighter (+ panel) for the chosen source/mode. Returns false if empty. */
@@ -174,7 +179,7 @@ export class Controller {
     if (!this.build('page', this.mode)) { alert('Lectern: nothing readable found here.'); return; }
     if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
     this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri), this.rate);
-    this.engine.play();
+    this.showTapHint(); // re-scan arms the new content; tap a word to start
   }
 
   private playPause() {
@@ -193,15 +198,28 @@ export class Controller {
     if (now - this.lastSaved > 2000) { this.lastSaved = now; setPosition(location.href, ti); }
   }
   private offerResume(tokenIndex: number) {
+    this.clearStartCue();
     const b = document.createElement('div'); b.className = 'lec-resume';
     b.textContent = 'Resume where you left off ▶';
     const fromStart = document.createElement('span'); fromStart.textContent = '   ·   Start over';
     fromStart.style.cssText = 'opacity:.85;text-decoration:underline;';
     b.appendChild(fromStart);
-    const go = (ti: number) => { b.remove(); this.engine.play(ti); };
+    const go = (ti: number) => { this.clearStartCue(); this.engine.play(ti); };
     b.addEventListener('click', e => { if (e.target === fromStart) go(0); else go(tokenIndex); });
+    this.startCue = b;
     this.shadow.appendChild(b);
   }
+  /** Non-playing cue shown after arming a page read. Removed once playback starts. */
+  private showTapHint() {
+    this.clearStartCue();
+    const h = document.createElement('div');
+    h.className = 'lec-resume';
+    h.style.cursor = 'default';
+    h.textContent = 'Tap a word to start reading';
+    this.startCue = h;
+    this.shadow.appendChild(h);
+  }
+  private clearStartCue() { this.startCue?.remove(); this.startCue = null; }
   // Tap a word on the live page (in-place mode) to start reading there. Capture phase so a
   // tap on article text seeks instead of triggering the page's own link/button; taps that
   // don't land on our read text (tokenAtPoint === -1) and taps on our own UI pass through.
@@ -223,6 +241,7 @@ export class Controller {
   }
   private teardownReading() {
     this.detachInplaceClick();
+    this.clearStartCue();
     this.highlighter?.destroy(); this.highlighter = null;
     this.panel?.destroy(); this.panel = null;
   }

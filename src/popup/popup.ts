@@ -18,7 +18,8 @@ async function render() {
   const r0 = stepRate(s.rate, 0); // snap any legacy off-grid value
   app.innerHTML = `
     <h1>Lectern</h1>
-    <button class="primary" id="read">▶ Read this page</button>
+    <button class="primary" id="read">Open Lectern here</button>
+    <small style="opacity:.7;margin-top:-4px">Then tap a word to start reading.</small>
     <label>Mode
       <select id="mode">
         <option value="overlay">Reader overlay</option>
