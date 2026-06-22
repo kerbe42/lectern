@@ -1,5 +1,6 @@
 import { Mode, Source, TokenMap } from '../shared/types';
 import { getSettings, setSettings, getPosition, setPosition, clearPosition } from '../shared/storage';
+import { stepRate } from '../shared/rate';
 import { collectDomText, CollectedText } from './extract/domtext';
 import { buildTokenMap, findTokenByPhrase } from './extract/token-map';
 import { extractReadable, findContentRoot } from './extract/readability';
@@ -69,7 +70,7 @@ export class Controller {
 
   async start(source: Source) {
     const s = await getSettings();
-    this.mode = s.mode; this.voiceUri = s.defaultVoiceURI; this.rate = s.rate;
+    this.mode = s.mode; this.voiceUri = s.defaultVoiceURI; this.rate = stepRate(s.rate, 0);
     this.wordColor = s.wordColor; this.sentColor = s.sentenceColor;
     this.bar.setRate(this.rate);
     this.voices = await loadVoices(window.speechSynthesis);

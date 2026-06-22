@@ -1,4 +1,5 @@
 import { PlaybackState } from '../../shared/types';
+import { stepRate } from '../../shared/rate';
 
 export interface ControlBarCallbacks {
   onPlayPause(): void; onStop(): void; onPrev(): void; onNext(): void;
@@ -38,8 +39,9 @@ export class ControlBar {
   }
 
   private bumpRate(d: number) {
-    this.setRate(Math.min(4, Math.max(0.5, +(this.rate + d).toFixed(2))));
-    this.cb.onRate(this.rate);
+    const next = stepRate(this.rate, d);
+    this.setRate(next);
+    this.cb.onRate(next);
   }
   setRate(r: number) { this.rate = r; this.rateLabel.textContent = r.toFixed(1) + '×'; }
   setState(s: PlaybackState) { this.playBtn.textContent = s === 'playing' ? '⏸' : '▶'; }
