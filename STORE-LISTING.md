@@ -1,10 +1,10 @@
-# Lectern — Chrome Web Store submission notes
+# Simple Reader — Chrome Web Store submission notes
 
 Everything you need to paste into the Developer Dashboard, plus the answers for the privacy forms.
 
 ## Single purpose (required field)
 
-> Lectern reads the current web page aloud using the browser's built-in text-to-speech and
+> Simple Reader reads the current web page aloud using the browser's built-in text-to-speech and
 > highlights each word as it is spoken.
 
 ## Short description
@@ -13,7 +13,7 @@ Everything you need to paste into the Developer Dashboard, plus the answers for 
 
 ## Detailed description (suggested)
 
-> Lectern turns any article into audio and highlights each word as it's read — like a built-in
+> Simple Reader turns any article into audio and highlights each word as it's read — like a built-in
 > audiobook for the web.
 >
 > • Reads the main article aloud with the current word + sentence highlighted and auto-scroll
@@ -27,18 +27,18 @@ Everything you need to paste into the Developer Dashboard, plus the answers for 
 
 ## Permission justifications (required, per-permission)
 
-- **activeTab** — To read and narrate the content of the tab **only when you click the Lectern
+- **activeTab** — To read and narrate the content of the tab **only when you click the Simple Reader
   icon or use its right-click menu**. No passive or background page access.
-- **scripting** — To inject Lectern's reader into that active tab on your action so it can extract
+- **scripting** — To inject Simple Reader's reader into that active tab on your action so it can extract
   the article text and render the highlight/controls.
 - **storage** — To save your preferences (voice, speed, highlight color, mode) and your reading
   position so it can offer to resume. Stored locally; never transmitted.
-- **contextMenus** — To add the "Read selection with Lectern" right-click item.
+- **contextMenus** — To add the "Read selection with Simple Reader" right-click item.
 - **Host permissions** — None requested. Access is gated by `activeTab` + a user gesture.
 
 ## "Reads or changes data on websites" disclosure
 
-Lectern reads page text (to narrate it) on the tab you activate it on. It does **not** change
+Simple Reader reads page text (to narrate it) on the tab you activate it on. It does **not** change
 website content beyond a temporary in-page reader overlay/highlight, and it transmits nothing.
 
 ## Data safety / privacy practices form
@@ -62,6 +62,6 @@ website content beyond a temporary in-page reader overlay/highlight, and it tran
 
 ## Pre-submission checks
 
-- [ ] Confirm the name "Lectern" doesn't collide with an existing Web Store item; rename if so.
+- [ ] Confirm the name "Simple Reader" doesn't collide with an existing Web Store item; rename if so.
 - [ ] Build with `npm ci && npm run package`; upload `lectern.zip`.
 - [ ] Publish **Unlisted** first if you only want it for yourself / link-sharing.

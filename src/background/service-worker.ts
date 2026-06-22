@@ -4,7 +4,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'lectern-read-selection',
-      title: 'Read selection with Lectern',
+      title: 'Read selection with Simple Reader',
       contexts: ['selection'],
     });
   });

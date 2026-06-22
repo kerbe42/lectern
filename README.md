@@ -1,4 +1,4 @@
-# Lectern
+# Simple Reader
 
 A Chrome extension that reads the current page aloud and **highlights each word as it's spoken** — free, and it all runs in your browser. Audio uses the browser's built-in Web Speech API, so there are **no API keys and nothing to pay for**.
 
@@ -9,7 +9,7 @@ A Chrome extension that reads the current page aloud and **highlights each word 
 - 🪟 Two modes: **reader overlay** (a clean panel) and **in-place** (highlights on the live page) — toggle with the ▤ button
 - 🎚️ Controls: play/pause, stop, ⏮/⏭ by sentence, speed 0.5×–4×, voice picker, click-to-seek progress bar
 - 👆 **Click any word** to start reading from there
-- 🖱️ **Read selection**: highlight text → right-click → *Read selection with Lectern*
+- 🖱️ **Read selection**: highlight text → right-click → *Read selection with Simple Reader*
 - 💾 **Remembers your position** per page and offers to resume
 
 ## Install (developer / unpacked)
@@ -25,11 +25,11 @@ Then in Chrome:
 2. Turn on **Developer mode** (top right)
 3. Click **Load unpacked** and choose the **`dist/`** folder
 
-Pin the Lectern icon, open any article, click it, and hit **▶ Read this page**.
+Pin the Simple Reader icon, open any article, click it, and hit **▶ Read this page**.
 
 ## Voices
 
-Lectern uses whatever voices Chrome exposes. **Local** voices are listed first because they reliably report word timing (a ☁ marks network voices). To add higher-quality voices on Windows: **Settings → Time & Language → Speech → Manage voices → Add voices**, then restart Chrome.
+Simple Reader uses whatever voices Chrome exposes. **Local** voices are listed first because they reliably report word timing (a ☁ marks network voices). To add higher-quality voices on Windows: **Settings → Time & Language → Speech → Manage voices → Add voices**, then restart Chrome.
 
 If you pick a network voice that doesn't report word boundaries, highlighting falls back to an estimated pace so it never freezes (it may drift slightly).
 
@@ -51,4 +51,4 @@ The bug-prone core logic (text → tokens → sentence chunks → word timing) i
 
 - Text inside cross-origin iframes can't be read (browser security).
 - No keyboard shortcuts yet.
-- Cloud TTS is intentionally not included — it needs a paid API key and doesn't provide word timings. Lectern stays free and local.
+- Cloud TTS is intentionally not included — it needs a paid API key and doesn't provide word timings. Simple Reader stays free and local.

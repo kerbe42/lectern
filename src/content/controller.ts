@@ -82,7 +82,7 @@ export class Controller {
 
     this.source = source;
     if (!this.build(source, this.mode)) {
-      alert('Lectern: nothing readable found here.');
+      alert('Simple Reader: nothing readable found here.');
       return;
     }
     if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
@@ -176,7 +176,7 @@ export class Controller {
   private refresh() {
     this.source = 'page';
     this.engine.stop();
-    if (!this.build('page', this.mode)) { alert('Lectern: nothing readable found here.'); return; }
+    if (!this.build('page', this.mode)) { alert('Simple Reader: nothing readable found here.'); return; }
     if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
     this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri), this.rate);
     this.showTapHint(); // re-scan arms the new content; tap a word to start

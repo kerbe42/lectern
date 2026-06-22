@@ -17,8 +17,8 @@ async function render() {
   const s = await getSettings();
   const r0 = stepRate(s.rate, 0); // snap any legacy off-grid value
   app.innerHTML = `
-    <h1>Lectern</h1>
-    <button class="primary" id="read">Open Lectern here</button>
+    <h1>Simple Reader</h1>
+    <button class="primary" id="read">Open Simple Reader here</button>
     <small style="opacity:.7;margin-top:-4px">Then tap a word to start reading.</small>
     <label>Mode
       <select id="mode">

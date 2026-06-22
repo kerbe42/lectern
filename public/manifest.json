@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Lectern",
+  "name": "Simple Reader",
   "version": "0.1.0",
   "description": "Read the page aloud and highlight words as it reads. Free, local, no API keys.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Lectern — read this page aloud",
+    "default_title": "Simple Reader — read this page aloud",
     "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
   },
   "background": { "service_worker": "service-worker.js" },
