@@ -1,0 +1,36 @@
+name: Release
+
+# Push a tag like v0.2.0 and this builds the extension, runs the tests, and attaches
+# simple-reader.zip to a GitHub release, ready to load into Chrome or Edge.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Check the tag matches the manifest version
+        run: |
+          v=$(node -p "require('./public/manifest.json').version")
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME but manifest says $v"; exit 1; }
+      - run: npm run package
+      - run: mv lectern.zip simple-reader.zip
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" simple-reader.zip \
+            --title "Simple Reader $GITHUB_REF_NAME" \
+            --notes "Download **simple-reader.zip** below, unzip it, and load the folder in Chrome or Edge. Step-by-step instructions are in the [README](https://github.com/${{ github.repository }}#install)."

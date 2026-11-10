@@ -182,7 +182,8 @@ export class Controller {
     this.showTapHint(); // re-scan arms the new content; tap a word to start
   }
 
-  private playPause() {
+  /** ▶/⏸ button and the play/pause keyboard shortcut. */
+  playPause() {
     const st = this.engine.getState();
     if (st === 'playing') this.engine.pause();
     else if (st === 'paused') this.engine.resume();

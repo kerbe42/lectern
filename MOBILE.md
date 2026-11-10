@@ -27,7 +27,7 @@ Use a fork that still accepts an unpacked/`.zip` extension in developer mode (tr
 2. In the browser, open its extensions page (e.g. `mises://extensions` or the menu → Extensions)
    and enable **Developer mode**.
 3. Choose **Load / + from .zip** and select `lectern.zip`.
-4. Open an article, then menu (⋮) → **Simple Reader** → **Read this page**.
+4. Open an article, then menu (⋮) → **Simple Reader** → **Open Simple Reader here**, then tap a word.
 
 > The zip must have `manifest.json` at its **root** (it does — it's a zip of `dist/`'s contents).
 
@@ -41,7 +41,7 @@ Best long-term, and the trustworthy-vendor route.
 3. On Android, install **Microsoft Edge Canary**.
 4. Edge → `edge://flags` → enable the extensions/developer flag → in Extensions, **enable
    Developer mode** and add the extension by **ID** (or open its Web Store link).
-5. Open an article → menu → **Simple Reader** → **Read this page**.
+5. Open an article → menu → **Simple Reader** → **Open Simple Reader here**, then tap a word.
 
 ---
 

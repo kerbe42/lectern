@@ -1,5 +1,6 @@
 import { getSettings, setSettings, clearAllPositions } from '../shared/storage';
 import { stepRate } from '../shared/rate';
+import { SHORTCUT_LABELS } from '../shared/commands';
 import type { LecternMessage } from '../shared/messages';
 import type { Mode } from '../shared/types';
 
@@ -20,6 +21,7 @@ async function render() {
     <h1>Simple Reader</h1>
     <button class="primary" id="read">Open Simple Reader here</button>
     <small style="opacity:.7;margin-top:-4px">Then tap a word to start reading.</small>
+    <small id="keys" style="opacity:.7"></small>
     <label>Mode
       <select id="mode">
         <option value="overlay">Reader overlay</option>
@@ -45,11 +47,28 @@ async function render() {
   });
   document.getElementById('wc')!.addEventListener('change', e =>
     setSettings({ wordColor: (e.target as HTMLInputElement).value }));
+  renderShortcuts(document.getElementById('keys')!).catch(() => {});
   const clearBtn = document.getElementById('clearpos')!;
   clearBtn.addEventListener('click', async () => {
     await clearAllPositions();
     clearBtn.textContent = 'Saved positions cleared ✓';
   });
+}
+/** Shows the keyboard shortcuts as currently bound (the user can change them), with a link to change them. */
+async function renderShortcuts(el: HTMLElement) {
+  if (!chrome.commands?.getAll) { el.remove(); return; } // not every browser has shortcuts (e.g. some on Android)
+  const bound = (await chrome.commands.getAll())
+    .filter(c => c.shortcut && c.name && c.name in SHORTCUT_LABELS)
+    .map(c => `${c.shortcut} ${SHORTCUT_LABELS[c.name!]}`);
+  el.textContent = bound.length ? `Keys: ${bound.join(' · ')} · ` : 'No keyboard shortcuts set · ';
+  const change = document.createElement('a');
+  change.href = '#';
+  change.textContent = bound.length ? 'change' : 'set them';
+  change.addEventListener('click', e => {
+    e.preventDefault();
+    chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }); // Edge redirects this to edge://
+  });
+  el.append(change);
 }
 function toHex(c: string) { return /^#[0-9a-fA-F]{6}$/.test(c) ? c : '#ffd54a'; }
 render();
