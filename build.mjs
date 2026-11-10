@@ -13,6 +13,7 @@ const opts = {
     content: 'src/content/index.ts',
     'service-worker': 'src/background/service-worker.ts',
     popup: 'src/popup/popup.ts',
+    update: 'src/update/update.ts',
   },
   bundle: true,
   format: 'iife',

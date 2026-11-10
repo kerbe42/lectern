@@ -6,3 +6,6 @@ button.primary:hover { background: #1d4ed8; }
 label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 select, input[type=range] { flex: 1; }
 h1 { font-size: 15px; margin: 0 0 4px; }
+.update-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: #eff6ff; color: #1e3a8a; }
+.update-row button { padding: 4px 10px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; font-size: 12px; }
+.update-row button:hover { background: #1d4ed8; }

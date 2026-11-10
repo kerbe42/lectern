@@ -3,6 +3,7 @@ import { stepRate } from '../shared/rate';
 import { SHORTCUT_LABELS } from '../shared/commands';
 import type { LecternMessage } from '../shared/messages';
 import type { Mode } from '../shared/types';
+import { getStoredUpdate } from '../update/check';
 
 async function injectAndStart() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -48,6 +49,7 @@ async function render() {
   document.getElementById('wc')!.addEventListener('change', e =>
     setSettings({ wordColor: (e.target as HTMLInputElement).value }));
   renderShortcuts(document.getElementById('keys')!).catch(() => {});
+  renderUpdateRow(app).catch(() => {});
   const clearBtn = document.getElementById('clearpos')!;
   clearBtn.addEventListener('click', async () => {
     await clearAllPositions();
@@ -69,6 +71,23 @@ async function renderShortcuts(el: HTMLElement) {
     chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }); // Edge redirects this to edge://
   });
   el.append(change);
+}
+/** "Update available" row; the update runs in its own tab because folder pickers close popups. */
+async function renderUpdateRow(app: HTMLElement) {
+  const update = await getStoredUpdate();
+  if (!update) return;
+  const row = document.createElement('div');
+  row.className = 'update-row';
+  const text = document.createElement('span');
+  text.textContent = `Update available: v${update.version}`;
+  const btn = document.createElement('button');
+  btn.textContent = 'Update now';
+  btn.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('update.html') });
+    window.close();
+  });
+  row.append(text, btn);
+  app.querySelector('h1')?.after(row);
 }
 function toHex(c: string) { return /^#[0-9a-fA-F]{6}$/.test(c) ? c : '#ffd54a'; }
 render();
