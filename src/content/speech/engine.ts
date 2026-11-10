@@ -9,6 +9,9 @@ export interface EngineCallbacks {
   onEnd(): void;
 }
 
+/** Silence before and after a heading, at 1× speed (shorter when reading faster). */
+export const HEADING_PAUSE_MS = 450;
+
 export class SpeechEngine {
   private map: TokenMap = { spokenText: '', tokens: [], sentences: [] };
   private chunks: Chunk[] = [];
@@ -18,13 +21,18 @@ export class SpeechEngine {
   private current = 0;
   private state: PlaybackState = 'idle';
   private gotBoundary = false;
+  private voiceTimesWords = false; // this voice has sent real word timing: never guess for it
+  private uttLast = -1;            // last token highlighted in the current utterance
   private fallbackTimer: ReturnType<typeof setTimeout> | null = null;
   private estTimers: ReturnType<typeof setTimeout>[] = [];
+  private gapTimer: ReturnType<typeof setTimeout> | null = null;
+  private resumeAtChunk = false; // paused during a heading pause: resume starts the next chunk
 
   constructor(private synth: SpeechSynthesis, private cb: EngineCallbacks) {}
 
   load(map: TokenMap, chunks: Chunk[], voice: SpeechSynthesisVoice | null, rate: number) {
     this.stop();
+    if (voice !== this.voice) this.voiceTimesWords = false;
     this.map = map; this.chunks = chunks; this.voice = voice; this.rate = rate;
     this.ci = 0; this.current = 0;
   }
@@ -33,13 +41,24 @@ export class SpeechEngine {
 
   play(fromToken?: number) {
     if (fromToken != null) this.ci = this.chunkForToken(fromToken);
+    this.resumeAtChunk = false;
     this.synth.cancel();
     this.setState('playing');
     this.speakCurrent(fromToken);
   }
-  pause() { if (this.state === 'playing') { this.synth.pause(); this.setState('paused'); } }
-  resume() { if (this.state === 'paused') { this.synth.resume(); this.setState('playing'); } }
-  stop() { this.clearTimers(); this.synth.cancel(); if (this.state !== 'idle') this.setState('idle'); }
+  pause() {
+    if (this.state !== 'playing') return;
+    if (this.gapTimer) { clearTimeout(this.gapTimer); this.gapTimer = null; this.resumeAtChunk = true; }
+    else this.synth.pause();
+    this.setState('paused');
+  }
+  resume() {
+    if (this.state !== 'paused') return;
+    this.setState('playing');
+    if (this.resumeAtChunk) { this.resumeAtChunk = false; this.speakCurrent(); }
+    else this.synth.resume();
+  }
+  stop() { this.clearTimers(); this.resumeAtChunk = false; this.synth.cancel(); if (this.state !== 'idle') this.setState('idle'); }
   setRate(rate: number) { this.rate = rate; if (this.state === 'playing') this.play(this.current); }
 
   nextSentence() {
@@ -78,30 +97,57 @@ export class SpeechEngine {
     if (this.voice) u.voice = this.voice;
     u.rate = this.rate;
     this.gotBoundary = false;
+    this.uttLast = -1;
 
     u.onstart = () => {
+      // Guess the pace only for voices that don't report word timing. Online voices can take a
+      // while to send their first word, so give them longer before falling back.
+      if (this.voiceTimesWords) return;
+      const wait = this.voice && !this.voice.localService ? 1200 : 400;
       this.fallbackTimer = setTimeout(() => {
         if (!this.gotBoundary) this.runEstimated(c, baseOffset, text);
-      }, 400);
+      }, wait);
     };
     u.onboundary = (e) => {
-      this.gotBoundary = true;
-      if (this.fallbackTimer) { clearTimeout(this.fallbackTimer); this.fallbackTimer = null; }
-      this.emit(tokenAtOffset(this.map, baseOffset + (e.charIndex || 0)));
+      // Only word boundaries move the highlight. Some voices also report sentence boundaries,
+      // which point back at the sentence's first word and made the highlight jump backwards.
+      if (e.name && e.name !== 'word') return;
+      if (!this.gotBoundary) {
+        this.gotBoundary = true;
+        this.voiceTimesWords = true;
+        // Real timing arrived: drop the fallback and any guessed timings already scheduled,
+        // otherwise both would drive the highlight and it would bounce around.
+        this.clearTimers();
+      }
+      const ti = tokenAtOffset(this.map, baseOffset + (e.charIndex || 0));
+      if (ti < this.uttLast) return; // never step backwards within one utterance
+      this.uttLast = ti;
+      this.emit(ti);
     };
     u.onend = () => {
       this.clearTimers();
       if (this.state !== 'playing') return;
-      this.ci++;
-      if (this.ci < this.chunks.length) this.speakCurrent(); else this.finish();
+      this.advance();
     };
     u.onerror = (e) => {
       if (this.state !== 'playing') return;
       if (e.error === 'interrupted' || e.error === 'canceled') return;
-      this.ci++;
-      if (this.ci < this.chunks.length) this.speakCurrent(); else this.finish();
+      this.advance();
     };
     this.synth.speak(u);
+  }
+
+  /** Move to the next chunk, leaving a short silence before and after headings. */
+  private advance() {
+    const prev = this.chunks[this.ci];
+    this.ci++;
+    const next = this.chunks[this.ci];
+    if (!next) return this.finish();
+    if (!prev?.heading && !next.heading) return this.speakCurrent();
+    this.gapTimer = setTimeout(() => {
+      this.gapTimer = null;
+      if (this.state === 'playing') this.speakCurrent(); else this.resumeAtChunk = true;
+    }, Math.round(HEADING_PAUSE_MS / Math.max(1, this.rate)));
   }
 
   private emit(ti: number) {
@@ -122,6 +168,7 @@ export class SpeechEngine {
     if (this.fallbackTimer) { clearTimeout(this.fallbackTimer); this.fallbackTimer = null; }
     for (const t of this.estTimers) clearTimeout(t);
     this.estTimers = [];
+    if (this.gapTimer) { clearTimeout(this.gapTimer); this.gapTimer = null; }
   }
   private finish() { this.clearTimers(); this.setState('idle'); this.cb.onEnd(); }
 }

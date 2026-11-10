@@ -5,7 +5,7 @@ import { collectDomText, CollectedText } from './extract/domtext';
 import { buildTokenMap, findTokenByPhrase } from './extract/token-map';
 import { extractReadable, findContentRoot } from './extract/readability';
 import { chunkBySentence } from './speech/chunker';
-import { loadVoices, pickVoice } from './speech/voices';
+import { loadVoices, pickVoice, rankVoices } from './speech/voices';
 import { SpeechEngine } from './speech/engine';
 import { Highlighter } from './highlight/highlighter';
 import { OverlayHighlighter } from './highlight/overlay-highlighter';
@@ -13,6 +13,16 @@ import { InplaceHighlighter } from './highlight/inplace-highlighter';
 import { OverlayPanel } from './ui/overlay-panel';
 import { ControlBar } from './ui/control-bar';
 import { SHADOW_CSS } from './ui/styles';
+
+// Page controls a tap must keep working on: links, buttons, expandable task/accordion headers,
+// form fields. Tapping plain text starts reading; tapping these does what the page intends.
+const INTERACTIVE = 'a[href], button, summary, label, input, select, textarea, [role="button"], [role="link"], ' +
+  '[role="tab"], [role="menuitem"], [role="checkbox"], [aria-expanded], [contenteditable=""], [contenteditable="true"]';
+
+/** The page's language (for choosing a voice), falling back to the browser's. */
+function pageLang(): string {
+  return document.documentElement.lang || navigator.language || 'en';
+}
 
 export class Controller {
   private shadow: ShadowRoot;
@@ -31,6 +41,7 @@ export class Controller {
   private lastSaved = 0;
   private inplaceClickAttached = false;
   private startCue: HTMLElement | null = null;
+  private readRoot: Element | null = null; // element read in place, for re-scanning newly shown text
   disposed = false;
 
   constructor() {
@@ -54,7 +65,7 @@ export class Controller {
       onRate: r => { this.rate = r; setSettings({ rate: r }); this.engine.setRate(r); },
       onVoice: uri => {
         this.voiceUri = uri; setSettings({ defaultVoiceURI: uri });
-        const v = pickVoice(this.voices, uri);
+        const v = pickVoice(this.voices, uri, pageLang());
         this.engine.load(this.map, chunkBySentence(this.map), v, this.rate);
         this.engine.play(this.engine.currentToken());
       },
@@ -76,9 +87,9 @@ export class Controller {
     this.wordColor = s.wordColor; this.sentColor = s.sentenceColor;
     this.bar.setRate(this.rate);
     this.voices = await loadVoices(window.speechSynthesis);
-    const voice = pickVoice(this.voices, this.voiceUri);
+    const voice = pickVoice(this.voices, this.voiceUri, pageLang());
     this.voiceUri = voice?.voiceURI ?? null;
-    this.bar.setVoices(this.voices, this.voiceUri);
+    this.bar.setVoices(rankVoices(this.voices, pageLang()), this.voiceUri);
 
     this.source = source;
     if (!this.build(source, this.mode)) {
@@ -111,7 +122,7 @@ export class Controller {
       const range = sel!.getRangeAt(0);
       const collected = collectDomText(range.commonAncestorContainer, range);
       if (!collected.text.trim()) return false;
-      this.map = buildTokenMap(collected.text);
+      this.map = buildTokenMap(collected.text, 'en', collected.headings);
       this.highlighter = this.makeInplace(collected);
       return this.map.tokens.length > 0;
     }
@@ -123,7 +134,7 @@ export class Controller {
         html, ti => this.engine.seekToToken(ti));
       const collected = collectDomText(this.panel.content);
       if (!collected.text.trim()) return false;
-      this.map = buildTokenMap(collected.text);
+      this.map = buildTokenMap(collected.text, 'en', collected.headings);
       this.highlighter = new OverlayHighlighter(this.panel.content, this.map, collected);
       return this.map.tokens.length > 0;
     }
@@ -131,8 +142,10 @@ export class Controller {
     // in-place full page
     const root = findContentRoot(document);
     const collected = collectDomText(root);
-    if (!collected.text.trim()) return false;
-    this.map = buildTokenMap(collected.text);
+    // Nothing on screen to read in place (content hidden, in frames, ...): use the reader panel.
+    if (!collected.text.trim()) return mode === 'inplace' ? this.build(source, 'overlay') : false;
+    this.readRoot = root;
+    this.map = buildTokenMap(collected.text, 'en', collected.headings);
     this.highlighter = this.makeInplace(collected);
     return this.map.tokens.length > 0;
   }
@@ -147,7 +160,7 @@ export class Controller {
     this.panel = new OverlayPanel(this.shadow, readable?.title ?? document.title, html,
       ti => this.engine.seekToToken(ti));
     const c2 = collectDomText(this.panel.content);
-    this.map = buildTokenMap(c2.text);
+    this.map = buildTokenMap(c2.text, 'en', c2.headings);
     return new OverlayHighlighter(this.panel.content, this.map, c2);
   }
 
@@ -162,7 +175,7 @@ export class Controller {
     setSettings({ mode: this.mode });
     this.engine.stop();
     if (this.build('page', this.mode)) {
-      this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri), this.rate);
+      this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri, pageLang()), this.rate);
       if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick(); else this.detachInplaceClick();
       const target = findTokenByPhrase(this.map, phrase);
       const from = target >= 0 ? target : 0;
@@ -178,7 +191,7 @@ export class Controller {
     this.engine.stop();
     if (!this.build('page', this.mode)) { alert('Simple Reader: nothing readable found here.'); return; }
     if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
-    this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri), this.rate);
+    this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri, pageLang()), this.rate);
     this.showTapHint(); // re-scan arms the new content; tap a word to start
   }
 
@@ -221,15 +234,35 @@ export class Controller {
     this.shadow.appendChild(h);
   }
   private clearStartCue() { this.startCue?.remove(); this.startCue = null; }
-  // Tap a word on the live page (in-place mode) to start reading there. Capture phase so a
-  // tap on article text seeks instead of triggering the page's own link/button; taps that
-  // don't land on our read text (tokenAtPoint === -1) and taps on our own UI pass through.
+  // Tap a word on the live page (in-place mode) to start reading there. Capture phase, so a tap
+  // on read text seeks instead of reaching the page. Taps on page controls (links, buttons,
+  // task headers) and on our own UI pass through untouched.
   private onInplaceClick = (e: MouseEvent) => {
     if (!this.highlighter) return;
     if (e.composedPath().includes(this.shadow.host)) return;
-    const ti = this.highlighter.tokenAtPoint(e.clientX, e.clientY);
+    if ((e.target as Element | null)?.closest?.(INTERACTIVE)) return;
+    let ti = this.highlighter.tokenAtPoint(e.clientX, e.clientY);
+    if (ti < 0 && this.isUnreadTextAt(e.clientX, e.clientY)) {
+      // Text that wasn't on screen when we scanned (e.g. a task expanded since): re-scan, retry.
+      if (this.rescanInPlace()) ti = this.highlighter?.tokenAtPoint(e.clientX, e.clientY) ?? -1;
+    }
     if (ti >= 0) { e.preventDefault(); e.stopPropagation(); this.engine.seekToToken(ti); }
   };
+  /** True if (x, y) is on visible text inside the element we read, which our scan didn't include. */
+  private isUnreadTextAt(x: number, y: number): boolean {
+    const r = (document as any).caretRangeFromPoint?.(x, y) as Range | null;
+    const node = r?.startContainer;
+    if (!node || node.nodeType !== Node.TEXT_NODE || !(node as Text).data.trim()) return false;
+    return !!this.readRoot && this.readRoot.contains(node);
+  }
+  /** Rebuild the in-place map from what's on screen now. False if that didn't give an in-place map. */
+  private rescanInPlace(): boolean {
+    this.engine.stop();
+    if (!this.build('page', 'inplace') || !(this.highlighter instanceof InplaceHighlighter)) return false;
+    this.attachInplaceClick();
+    this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri, pageLang()), this.rate);
+    return true;
+  }
   private attachInplaceClick() {
     if (this.inplaceClickAttached) return;
     document.addEventListener('click', this.onInplaceClick, true);
@@ -242,6 +275,7 @@ export class Controller {
   }
   private teardownReading() {
     this.detachInplaceClick();
+    this.readRoot = null;
     this.clearStartCue();
     this.highlighter?.destroy(); this.highlighter = null;
     this.panel?.destroy(); this.panel = null;

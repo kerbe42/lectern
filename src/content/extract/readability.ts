@@ -22,13 +22,40 @@ export function extractReadable(doc: Document): Readable | null {
   return null;
 }
 
+function rendered(el: HTMLElement): boolean {
+  if (typeof (el as any).checkVisibility === 'function') return (el as any).checkVisibility();
+  const view = el.ownerDocument.defaultView; // fallback for engines without checkVisibility (jsdom)
+  for (let cur: Element | null = el; cur; cur = cur.parentElement) {
+    if (view?.getComputedStyle(cur).display === 'none') return false;
+  }
+  return true;
+}
+
+/** Length of the text actually on screen: hidden subtrees count for nothing. */
+function shownTextLength(el: HTMLElement): number {
+  if (!rendered(el)) return 0;
+  const t: string = (el as any).innerText ?? el.textContent ?? ''; // innerText follows CSS; jsdom lacks it
+  return t.trim().length;
+}
+
+/**
+ * The element to read in place. Prefers the article/main element with the most visible text.
+ * Visibility matters: some pages keep a hidden copy of their content (pre-rendered for search
+ * engines), and reading that finds nothing on screen.
+ */
 export function findContentRoot(doc: Document): HTMLElement {
-  const direct = doc.querySelector('article, main, [role="main"]') as HTMLElement | null;
-  if (direct && (direct.textContent || '').trim().length > 200) return direct;
-  let best: HTMLElement = doc.body, bestLen = 0;
-  doc.querySelectorAll<HTMLElement>('article, main, section, div').forEach(el => {
-    const len = (el.textContent || '').length;
-    if (len > bestLen && el.querySelectorAll('p').length >= 3) { bestLen = len; best = el; }
+  let best: HTMLElement | null = null;
+  let bestLen = 200;
+  doc.querySelectorAll<HTMLElement>('article, main, [role="main"]').forEach(el => {
+    const len = shownTextLength(el);
+    if (len > bestLen) { best = el; bestLen = len; }
   });
-  return best;
+  if (best) return best;
+  let fallback: HTMLElement = doc.body, fallbackLen = 0;
+  doc.querySelectorAll<HTMLElement>('article, main, section, div').forEach(el => {
+    if (el.querySelectorAll('p').length < 3) return;
+    const len = shownTextLength(el);
+    if (len > fallbackLen) { fallbackLen = len; fallback = el; }
+  });
+  return fallback;
 }

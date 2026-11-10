@@ -15,6 +15,7 @@ export interface Sentence {
   end: number;
   firstToken: number;
   lastToken: number;
+  heading?: boolean; // a heading/title: spoken on its own, with a pause around it
 }
 export interface TokenMap {
   spokenText: string;
@@ -26,6 +27,7 @@ export interface Chunk {
   startOffset: number;// char offset of text within spokenText
   firstToken: number;
   lastToken: number;
+  heading?: boolean;
 }
 
 export interface Settings {
@@ -38,7 +40,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   defaultVoiceURI: null,
   rate: 1,
-  mode: 'overlay',
+  mode: 'inplace', // tap a word on the page to start; falls back to the panel if nothing is readable
   wordColor: '#ffd54a',
   sentenceColor: 'rgba(255, 213, 74, 0.28)',
 };

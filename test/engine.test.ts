@@ -61,3 +61,47 @@ describe('SpeechEngine boundary → token mapping', () => {
     expect(words).toEqual([3, 4, 5]);
   });
 });
+
+describe('SpeechEngine highlight never jumps backwards', () => {
+  // Speaks words with a sentence boundary in between (as some voices do), and lets the test
+  // decide when the word boundaries arrive.
+  function harness() {
+    const words: number[] = [];
+    const utts: any[] = [];
+    const synth = { speak: (u: any) => utts.push(u), cancel() {}, pause() {}, resume() {} };
+    const map = buildTokenMap('One two three four five.');
+    const engine = new SpeechEngine(synth as any, {
+      onWord: ti => words.push(ti), onSentence: () => {}, onState: () => {}, onEnd: () => {},
+    });
+    engine.load(map, chunkBySentence(map), { localService: false } as any, 1);
+    engine.play();
+    return { words, utts };
+  }
+  it('ignores sentence boundaries that point back at the first word', () => {
+    const { words, utts } = harness();
+    const u = utts[0];
+    u.onstart();
+    u.onboundary({ name: 'word', charIndex: 0 });
+    u.onboundary({ name: 'word', charIndex: 4 });
+    u.onboundary({ name: 'sentence', charIndex: 0 }); // must not move the highlight back
+    u.onboundary({ name: 'word', charIndex: 8 });
+    expect(words).toEqual([0, 1, 2]);
+  });
+  it('stops guessing once real word timing arrives late', async () => {
+    const { vi } = await import('vitest');
+    vi.useFakeTimers();
+    try {
+      const { words, utts } = harness();
+      const u = utts[0];
+      u.onstart();
+      vi.advanceTimersByTime(1300);                  // no timing yet: guessing starts
+      vi.advanceTimersByTime(200);
+      const guessed = words.length;
+      u.onboundary({ name: 'word', charIndex: 4 });  // real timing arrives
+      const after = words.length;
+      vi.advanceTimersByTime(5000);                  // guessed timers must not fire any more
+      expect(words.length).toBe(after);
+      expect(after).toBe(guessed + 1);
+    } finally { vi.useRealTimers(); }
+  });
+});

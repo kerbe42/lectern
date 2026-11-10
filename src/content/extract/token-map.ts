@@ -1,10 +1,12 @@
 import { TokenMap, Token, Sentence } from '../../shared/types';
 import { segmentWords, segmentSentences } from './tokenizer';
 
-export function buildTokenMap(spokenText: string, locale = 'en'): TokenMap {
+/** `headings`: [start, end) ranges of heading text; sentences inside them are marked as headings. */
+export function buildTokenMap(spokenText: string, locale = 'en', headings: Array<[number, number]> = []): TokenMap {
   const sents = segmentSentences(spokenText, locale);
   const sentences: Sentence[] = sents.map((s, i) => ({
     id: i, start: s.start, end: s.end, firstToken: -1, lastToken: -1,
+    ...(headings.some(([hs, he]) => s.start < he && hs < s.end) ? { heading: true } : {}),
   }));
   const tokens: Token[] = [];
   let si = 0;

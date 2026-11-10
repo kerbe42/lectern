@@ -13,13 +13,15 @@ export function chunkBySentence(map: TokenMap, maxChars = 200): Chunk[] {
   while (i < s.length) {
     const start = s[i];
     let j = i;
-    while (j + 1 < s.length && s[j + 1].end - start.start <= maxChars) j++;
+    // Headings are never merged with body text, so the voice can pause around them.
+    while (j + 1 < s.length && !!s[j + 1].heading === !!start.heading && s[j + 1].end - start.start <= maxChars) j++;
     const end = s[j];
     chunks.push({
       text: map.spokenText.slice(start.start, end.end),
       startOffset: start.start,
       firstToken: start.firstToken,
       lastToken: end.lastToken,
+      ...(start.heading ? { heading: true } : {}),
     });
     i = j + 1;
   }

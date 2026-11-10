@@ -3,3 +3,4 @@ dist/
 lectern.zip
 *.log
 .DS_Store
+.claude/
