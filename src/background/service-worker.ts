@@ -1,5 +1,6 @@
 import type { LecternMessage } from '../shared/messages';
 import { messageForCommand } from '../shared/commands';
+import { checkForUpdate, getStoredUpdate, showUpdateBadge, UPDATE_ALARM, UPDATE_PERIOD_MINUTES } from '../update/check';
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
@@ -37,4 +38,19 @@ chrome.commands?.onCommand.addListener(async (command, tab) => {
   } else {
     injectAndSend(tabId, msg).catch(console.error);
   }
+});
+
+// Update check: on install/update, on browser start, and every 12 hours. A newer release is
+// stored for the popup and shown as a badge; the popup's "Update now" opens update.html.
+async function scheduleUpdateChecks() {
+  await showUpdateBadge(await getStoredUpdate()); // the badge doesn't survive a browser restart; restore it even when offline
+  if (!(await chrome.alarms.get(UPDATE_ALARM))) {
+    await chrome.alarms.create(UPDATE_ALARM, { periodInMinutes: UPDATE_PERIOD_MINUTES });
+  }
+  await checkForUpdate();
+}
+chrome.runtime.onInstalled.addListener(() => { scheduleUpdateChecks().catch(() => {}); });
+chrome.runtime.onStartup.addListener(() => { scheduleUpdateChecks().catch(() => {}); });
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === UPDATE_ALARM) checkForUpdate().catch(() => {});
 });

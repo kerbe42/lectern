@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Update Simple Reader</title>
+<link rel="icon" href="icons/icon48.png" />
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: Canvas; color: CanvasText; }
+  main { max-width: 600px; margin: 0 auto; padding: 32px 16px; display: flex; flex-direction: column; gap: 12px; }
+  h1 { font-size: 22px; margin: 0; }
+  p { margin: 0; }
+  .muted { opacity: .75; font-size: 14px; }
+  #first-time { border-left: 3px solid #2563eb; padding: 4px 0 4px 12px; }
+  button.primary { align-self: flex-start; padding: 10px 18px; font-size: 15px; cursor: pointer; border: 0; border-radius: 8px; background: #2563eb; color: #fff; }
+  button.primary:hover { background: #1d4ed8; }
+  button.primary:disabled { opacity: .6; cursor: default; }
+  progress { width: 100%; }
+  #error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; }
+  @media (prefers-color-scheme: dark) { #error { color: #fecaca; background: #450a0a; border-color: #7f1d1d; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Update Simple Reader</h1>
+  <p id="summary">Checking for a new version…</p>
+  <p class="muted">Simple Reader runs from the folder you added with <b>Load unpacked</b>. <b>Update now</b> downloads the new release
+    from GitHub, checks it, writes it into that folder, and restarts the extension. Your settings and saved reading positions are kept.</p>
+  <p id="first-time" class="muted" hidden>The first time, the browser asks you to choose a folder. Choose the Simple Reader folder you
+    loaded with Load unpacked: the one with <code>manifest.json</code> directly inside it (open Details for Simple Reader on the
+    extensions page and look under "Loaded from"). Then allow the extension to edit files there. Later updates go straight through, or ask you to
+    confirm once.</p>
+  <button id="go" class="primary" hidden>Update now</button>
+  <progress id="bar" hidden></progress>
+  <p id="status" role="status" aria-live="polite"></p>
+  <p id="error" role="alert" hidden></p>
+</main>
+<script src="update.js"></script>
+</body>
+</html>
