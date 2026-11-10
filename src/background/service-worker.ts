@@ -1,5 +1,6 @@
 import type { LecternMessage } from '../shared/messages';
 import { messageForCommand } from '../shared/commands';
+import { sessionStore, rememberTab, forgetTab, reopenAfterLoad } from './keep-open';
 import { checkForUpdate, getStoredUpdate, showUpdateBadge, UPDATE_ALARM, UPDATE_PERIOD_MINUTES } from '../update/check';
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -39,6 +40,19 @@ chrome.commands?.onCommand.addListener(async (command, tab) => {
     injectAndSend(tabId, msg).catch(console.error);
   }
 });
+
+// The reader says when it is opened on a page and when it is closed. A tab where it is open gets
+// it back after loading a new page (same site only; see keep-open.ts).
+chrome.runtime.onMessage.addListener((msg: LecternMessage, sender) => {
+  if (sender.id !== chrome.runtime.id || sender.tab?.id == null) return;
+  if (msg.type === 'OPENED') rememberTab(sessionStore, sender.tab.id).catch(() => {});
+  else if (msg.type === 'CLOSED') forgetTab(sessionStore, sender.tab.id).catch(() => {});
+});
+chrome.tabs.onUpdated.addListener((tabId, change) => {
+  if (change.status !== 'complete') return;
+  reopenAfterLoad(sessionStore, tabId, id => injectAndSend(id, { type: 'REOPEN' })).catch(() => {});
+});
+chrome.tabs.onRemoved.addListener(tabId => { forgetTab(sessionStore, tabId).catch(() => {}); });
 
 // Update check: on install/update, on browser start, and every 12 hours. A newer release is
 // stored for the popup and shown as a badge; the popup's "Update now" opens update.html.

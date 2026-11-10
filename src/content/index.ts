@@ -22,6 +22,10 @@ if (!w.__lecternInit) {
     if (msg.type === 'START') {
       controller().start(msg.source);
       sendResponse({ ok: true });
+    } else if (msg.type === 'REOPEN') {
+      const c: Controller | undefined = w.__lecternController;
+      if (!c || c.disposed) controller().start('page');
+      sendResponse({ ok: true });
     } else if (msg.type === 'READ') {
       controller().start(sourceForSelection(window.getSelection()?.toString()));
       sendResponse({ ok: true });

@@ -33,7 +33,7 @@ export class ControlBar {
     this.voiceSel = document.createElement('select');
     this.voiceSel.addEventListener('change', () => cb.onVoice(this.voiceSel.value));
     const mode = btn('▤', cb.onToggleMode); mode.title = 'Toggle overlay / in-place';
-    const refresh = btn('↻', cb.onRefresh); refresh.title = 'Re-scan page (for expanded / newly loaded content)';
+    const refresh = btn('↻', cb.onRefresh); refresh.title = 'Re-scan the page now (it also happens by itself when the page changes)';
     const close = btn('✕', cb.onClose);
     this.bar.append(prev, this.playBtn, next, stop, slower, this.rateLabel, faster, this.prog, this.voiceSel, mode, refresh, close);
     shadow.appendChild(this.bar);

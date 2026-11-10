@@ -13,6 +13,7 @@ import { InplaceHighlighter } from './highlight/inplace-highlighter';
 import { OverlayPanel } from './ui/overlay-panel';
 import { ControlBar } from './ui/control-bar';
 import { SHADOW_CSS } from './ui/styles';
+import { PageWatcher } from './page-watch';
 
 // Page controls a tap must keep working on: links, buttons, expandable task/accordion headers,
 // form fields. Tapping plain text starts reading; tapping these does what the page intends.
@@ -22,6 +23,11 @@ const INTERACTIVE = 'a[href], button, summary, label, input, select, textarea, [
 /** The page's language (for choosing a voice), falling back to the browser's. */
 function pageLang(): string {
   return document.documentElement.lang || navigator.language || 'en';
+}
+
+/** Tell the background whether the reader is open here, so it can reopen it after a page load. */
+function tellBackground(type: 'OPENED' | 'CLOSED') {
+  try { chrome.runtime.sendMessage({ type }).catch(() => {}); } catch { /* extension reloaded */ }
 }
 
 export class Controller {
@@ -42,6 +48,11 @@ export class Controller {
   private inplaceClickAttached = false;
   private startCue: HTMLElement | null = null;
   private readRoot: Element | null = null; // element read in place, for re-scanning newly shown text
+  private watcher: PageWatcher;
+  private started = false;          // a page read was asked for: keep its scan current
+  private rescanWhenIdle = false;   // the page changed while reading: re-scan once reading stops
+  private resumeOffer: number | null = null; // token of the "resume" offer on screen, if any
+  private playFrom: number | null = null;    // where ▶ starts after a quiet re-scan moved the words
   disposed = false;
 
   constructor() {
@@ -54,7 +65,11 @@ export class Controller {
     this.engine = new SpeechEngine(window.speechSynthesis, {
       onWord: ti => { this.highlighter?.highlightWord(ti); this.updateProgress(ti); this.maybeSave(ti); },
       onSentence: sid => this.highlighter?.highlightSentence(sid),
-      onState: s => { this.bar.setState(s); if (s === 'playing') this.clearStartCue(); },
+      onState: s => {
+        this.bar.setState(s);
+        if (s === 'playing') { this.clearStartCue(); this.playFrom = null; }
+        else if (s === 'idle' && this.rescanWhenIdle) setTimeout(() => this.onPageChange(false), 0);
+      },
       onEnd: () => { if (this.source === 'page') clearPosition(location.href); },
     });
     this.bar = new ControlBar(this.shadow, {
@@ -75,6 +90,14 @@ export class Controller {
       onClose: () => this.close(),
     });
 
+    // Keep the scan current without the ↻ button: new content, or a move to another page of a
+    // single-page site, re-arms the reader by itself.
+    this.watcher = new PageWatcher(document, {
+      readableText: () => this.pageText(),
+      onChange: c => this.onPageChange(c.urlChanged),
+      ignore: host,
+    });
+
     window.addEventListener('pagehide', () => {
       if (this.disposed || this.source !== 'page') return;
       setPosition(location.href, this.engine.currentToken());
@@ -92,8 +115,14 @@ export class Controller {
     this.bar.setVoices(rankVoices(this.voices, pageLang()), this.voiceUri);
 
     this.source = source;
-    if (!this.build(source, this.mode)) {
-      alert('Simple Reader: nothing readable found here.');
+    this.rescanWhenIdle = false; this.playFrom = null;
+    if (source === 'page') { this.started = true; this.watcher.start(); tellBackground('OPENED'); }
+    const built = this.build(source, this.mode);
+    if (source === 'page') this.watcher.mark(this.pageText());
+    if (!built) {
+      // A page that is still loading has nothing to read yet: wait for it instead of giving up.
+      if (source === 'page') this.showCue('Nothing to read here yet. It will be picked up when the page shows it.');
+      else alert('Simple Reader: nothing readable found here.');
       return;
     }
     if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
@@ -188,11 +217,62 @@ export class Controller {
    *  where panels load on expand — the original snapshot can't see content added later. */
   private refresh() {
     this.source = 'page';
+    this.started = true; this.watcher.start();
+    this.rescanWhenIdle = false; this.playFrom = null;
     this.engine.stop();
-    if (!this.build('page', this.mode)) { alert('Simple Reader: nothing readable found here.'); return; }
+    const built = this.build('page', this.mode);
+    this.watcher.mark(this.pageText());
+    if (!built) { alert('Simple Reader: nothing readable found here.'); return; }
     if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
     this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri, pageLang()), this.rate);
     this.showTapHint(); // re-scan arms the new content; tap a word to start
+  }
+
+  /** The text a page scan would read right now (what the watcher compares). */
+  private pageText(): string {
+    return collectDomText(findContentRoot(document)).text;
+  }
+
+  /**
+   * The page has new text, or moved to another address (single-page sites do this without a
+   * reload). Re-scan by itself, so a tap works straight away. Reading in progress is never cut
+   * off by new text on the same page: the re-scan waits until it stops. A move to another page
+   * does stop it, because the text being read is gone.
+   */
+  private onPageChange(urlChanged: boolean) {
+    if (this.disposed || !this.started || this.source !== 'page') return;
+    if (!urlChanged && this.engine.getState() !== 'idle') { this.rescanWhenIdle = true; return; }
+    this.rescanWhenIdle = false;
+
+    // Same page: keep the reader's place by matching the words, since the indexes moved.
+    const at = this.playFrom ?? this.engine.currentToken();
+    const phrase = urlChanged ? [] : this.map.tokens.slice(at, at + 5).map(t => t.text);
+    const offer = urlChanged ? null : this.resumeOffer;
+    this.playFrom = null;
+
+    this.engine.stop();
+    const built = this.build('page', this.mode);
+    this.watcher.mark(this.pageText());
+    if (!built) {
+      this.map = { spokenText: '', tokens: [], sentences: [] };
+      this.showCue('Nothing to read here yet. It will be picked up when the page shows it.');
+      return;
+    }
+    if (this.highlighter instanceof InplaceHighlighter) this.attachInplaceClick();
+    this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri, pageLang()), this.rate);
+
+    if (offer != null && offer < this.map.tokens.length) { this.offerResume(offer); return; }
+    const target = at > 0 && phrase.length ? findTokenByPhrase(this.map, phrase) : -1;
+    if (target > 0) { this.playFrom = target; this.updateProgress(target); }
+    else this.updateProgress(0);
+    this.showTapHint();
+    if (urlChanged) {
+      const href = location.href;
+      getPosition(href).then(saved => {
+        if (this.disposed || location.href !== href || this.engine.getState() !== 'idle') return;
+        if (saved && saved > 0 && saved < this.map.tokens.length) this.offerResume(saved);
+      }).catch(() => {});
+    }
   }
 
   /** ▶/⏸ button and the play/pause keyboard shortcut. */
@@ -200,6 +280,7 @@ export class Controller {
     const st = this.engine.getState();
     if (st === 'playing') this.engine.pause();
     else if (st === 'paused') this.engine.resume();
+    else if (this.playFrom != null) this.engine.play(this.playFrom);
     else this.engine.play();
   }
   private updateProgress(ti: number) {
@@ -221,19 +302,21 @@ export class Controller {
     const go = (ti: number) => { this.clearStartCue(); this.engine.play(ti); };
     b.addEventListener('click', e => { if (e.target === fromStart) go(0); else go(tokenIndex); });
     this.startCue = b;
+    this.resumeOffer = tokenIndex;
     this.shadow.appendChild(b);
   }
   /** Non-playing cue shown after arming a page read. Removed once playback starts. */
-  private showTapHint() {
+  private showTapHint() { this.showCue('Tap a word to start reading'); }
+  private showCue(text: string) {
     this.clearStartCue();
     const h = document.createElement('div');
     h.className = 'lec-resume';
     h.style.cursor = 'default';
-    h.textContent = 'Tap a word to start reading';
+    h.textContent = text;
     this.startCue = h;
     this.shadow.appendChild(h);
   }
-  private clearStartCue() { this.startCue?.remove(); this.startCue = null; }
+  private clearStartCue() { this.startCue?.remove(); this.startCue = null; this.resumeOffer = null; }
   // Tap a word on the live page (in-place mode) to start reading there. Capture phase, so a tap
   // on read text seeks instead of reaching the page. Taps on page controls (links, buttons,
   // task headers) and on our own UI pass through untouched.
@@ -253,12 +336,18 @@ export class Controller {
     const r = (document as any).caretRangeFromPoint?.(x, y) as Range | null;
     const node = r?.startContainer;
     if (!node || node.nodeType !== Node.TEXT_NODE || !(node as Text).data.trim()) return false;
-    return !!this.readRoot && this.readRoot.contains(node);
+    if ((this.shadow.host as Element).contains(node)) return false;
+    // The element we scanned was replaced (the site swapped its content): anything readable counts.
+    if (!this.readRoot || !this.readRoot.isConnected) return true;
+    return this.readRoot.contains(node) || findContentRoot(document).contains(node);
   }
   /** Rebuild the in-place map from what's on screen now. False if that didn't give an in-place map. */
   private rescanInPlace(): boolean {
     this.engine.stop();
-    if (!this.build('page', 'inplace') || !(this.highlighter instanceof InplaceHighlighter)) return false;
+    const built = this.build('page', 'inplace');
+    this.watcher.mark(this.pageText());
+    this.rescanWhenIdle = false; this.playFrom = null;
+    if (!built || !(this.highlighter instanceof InplaceHighlighter)) return false;
     this.attachInplaceClick();
     this.engine.load(this.map, chunkBySentence(this.map), pickVoice(this.voices, this.voiceUri, pageLang()), this.rate);
     return true;
@@ -282,6 +371,9 @@ export class Controller {
   }
   private close() {
     this.disposed = true;
+    this.started = false;
+    tellBackground('CLOSED');
+    this.watcher.stop();
     this.engine.stop();
     this.teardownReading();
     this.bar.destroy();

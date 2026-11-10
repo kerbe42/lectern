@@ -9,6 +9,7 @@ A Chrome and Edge extension that reads the current page aloud and **highlights e
 - 🪟 Two modes: **in-place** (highlights on the live page, the default) and **reader panel** (a clean side panel) — toggle with the ▤ button. If a page has nothing readable in place, the panel opens instead.
 - 🎚️ Controls: play/pause, stop, ⏮/⏭ by sentence, speed 0.5×–4×, voice picker, click-to-seek progress bar
 - 👆 **Tap any word** on the page to start reading from there. Links, buttons and expandable sections keep working as normal; open a collapsed section, tap a word in it, and it reads from there.
+- 🔄 **Keeps up with the page**: when a page loads more text, or you move to another page on the same site, the reader picks up the new text by itself. No re-scan click: tap a word and it reads.
 - 📑 **Headings** are read on their own with a short pause before and after, instead of running into the next paragraph
 - 🗣️ **Natural voice by default**: picks a natural-sounding voice in the page's language (in Edge, the "Natural" voices) instead of the robotic built-in ones
 - 🖱️ **Read selection**: highlight text → right-click → *Read selection with Simple Reader*
@@ -51,7 +52,7 @@ npm run build     # bundle to dist/ (load that folder unpacked)
 npm run package   # build + zip dist/ into lectern.zip
 ```
 
-Releases are automatic: bump `version` in `public/manifest.json` and `package.json`, then push a matching tag (`git tag v0.3.0 && git push --tags`). GitHub Actions tests, builds and attaches `simple-reader.zip` to the release.
+Releases are automatic: bump `version` in `public/manifest.json` and `package.json`, then push a matching tag (`git tag v0.3.1 && git push --tags`). GitHub Actions tests, builds and attaches `simple-reader.zip` to the release.
 
 The bug-prone core logic (text → tokens → sentence chunks → word timing) is pure and unit-tested. The browser-dependent pieces (DOM extraction, speech engine, highlighters, UI) are verified manually in the browser.
 
@@ -64,4 +65,5 @@ The bug-prone core logic (text → tokens → sentence chunks → word timing) i
 - Text inside cross-origin iframes can't be read (browser security).
 - Tapping a link or button follows it rather than starting there: tap a nearby word instead.
 - In-place mode reads what's open on screen. Collapsed sections are skipped until you open one (or use the reader panel, which reads everything).
+- The reader follows you from page to page on the same site. When the tab goes to a different site, the browser withdraws the extension's access to the tab, so open the reader again there (icon or Alt+Shift+S).
 - Cloud TTS is intentionally not included — it needs a paid API key and doesn't provide word timings. Simple Reader stays free and local.

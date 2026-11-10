@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAo30UiMv5xP6lLTWQu/D3Pri1O3QfJrJXJgTWljuUkro4Ul0IK/m3Cijc0eao9vk0gsisiZhK6F4/64tEzUgNk7U+3HmiarkLNwNSrhY1Bs+jy4ak6JbrMsNplD6VX7TPpztOXck33waaufk/H0QS0dmCRyDg6Q/apcWEWyCzyzEIWkZjd5QPRnyLuzqkfCrkWVdR+9PdaiVYeQloU55NYHklCvaYK3N0dhBhTh/M9EyptEWiHyb4NvSfyfSYv4ny5guv18+UggBNnqbq2FalBv5W3FHYNp2Wedo4gDQmtg+FNrQqgq8phdJLPc08zPiPTPswC/PG6csTczoWBNdTCQIDAQAB",
   "name": "Simple Reader",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Read the page aloud and highlight words as it reads. Free, local, no API keys.",
   "action": {
     "default_popup": "popup.html",
